@@ -45,7 +45,7 @@ asciify_tree(T) -> asciify_tree([T], 0).
 
 asciify_tree([], _)   -> ok;
 asciify_tree([[]], _) -> ok;
-asciify_tree([{R, ST}|Rest], 0) ->
+asciify_tree([{R, ST}], 0) ->
   io:format("~s~n", [nicename(R, regname(R))]),
   asciify_tree(ST, 1);
 asciify_tree([{R, ST}], L) ->
