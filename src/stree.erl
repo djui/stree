@@ -2,30 +2,31 @@
 %% -*- erlang -*-
 %%! -noshell -noinput
 %%% @doc Draws the supervision tree of a given supervisor.
+%%% @usage "erl -pa ebin -s stree main SUP_PID -s init stop"
 %%% @author Uwe Dauernheim <uwe@dauernheim.net>
 -module(stree).
 
 -author("Uwe Dauernheim <uwe@dauernheim.net>").
 
--export([main/1]).
+-export([ main/1 ]).
 
 -define(DEPTH, 3).
 
-main([S]) when is_atom(S) -> main(S);
-main(S) when is_atom(S)   -> main(whereis(S));
-main(S) when is_pid(S)    -> precheck1(S).
+main([S])               -> main(S);
+main(S) when is_atom(S) -> main(whereis(S));
+main(S) when is_pid(S)  -> precheck(S), build_tree(S).
 
-precheck1(undefined) -> exit(not_found);
-precheck1(P)         ->
+precheck(undefined) -> exit(not_found);
+precheck(P)         ->
   {dictionary, D} = process_info(P, dictionary),
   precheck2(proplists:get_value('$initial_call', D), P).
 
-precheck2({supervisor, kernel, 1}, P) -> build_tree(P);
+precheck2({supervisor, kernel, 1}, _) -> ok;
 precheck2(_,                       _) -> exit(no_supervisor).
 
 build_tree(R) ->
   T = traverse(R, R, ?DEPTH),
-  dot(T).
+  asciify_tree(T).
 
 traverse(_, _, 0) -> [];
 traverse(N, P, Depth) ->
@@ -37,18 +38,29 @@ traverse(N, P, Depth) ->
   {N, ST}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Drawing
+%%% ASCII Drawing
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-dot(T = {R, _}) ->
-  io:format("graph \"~s\" {~n", [regname(R)]),
-  dot_traverse(T),
-  io:format("}~n").
+asciify_tree(T) -> asciify_tree([T], 0).
 
-dot_traverse([])      -> ok;
-dot_traverse({R, ST}) ->
-  [io:format("\"~s\" -- \"~s\";~n", [regname(R), regname(R2)]) || {R2, _} <- ST],
-  [dot_traverse(P) || P <- ST].
+asciify_tree([], _)            -> ok;
+asciify_tree([[]], _)          -> ok;
+asciify_tree([{R,ST}|Rest], 0) ->
+  io:format("~s~n", [regname(R)]),
+  asciify_tree(ST, 1);
+asciify_tree([{R,ST}], L) ->
+  io:format("~s`-~s~n", [indent(L*2), regname(R)]),
+  asciify_tree(ST, L+1);
+asciify_tree([{R,ST}|Rest], L) ->
+  io:format("~s+-~s~n", [indent(L*2), regname(R)]),
+  asciify_tree(ST, L+1),
+  asciify_tree(Rest, L).
+
+indent(N) -> string:right("", N).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Helper functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 regname(R) ->
   try {registered_name, N} = process_info(R, registered_name), nicename(R, N)
