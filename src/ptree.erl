@@ -1,14 +1,16 @@
 %%!/usr/bin/env escript
 %% -*- erlang -*-
 %%! -noshell -noinput
-%%% @doc Draws the supervision tree of a given supervisor.
-%%% @usage "erl -pa ebin -s ptree main SUP_PID -s init stop"
+%%% @doc Draws the process tree of a given supervisor.
+%%% @usage "erl -pa ebin -s stree main SUP_PID -s init stop"
 %%% @author Uwe Dauernheim <uwe@dauernheim.net>
--module(stree).
+-module(ptree).
 
 -author("Uwe Dauernheim <uwe@dauernheim.net>").
 
 -export([main/1]).
+
+-define(DEPTH, 3).
 
 main([S])               -> main(S);
 main(S) when is_atom(S) -> main(whereis(S));
@@ -23,14 +25,17 @@ precheck2({supervisor, kernel, 1}, _) -> ok;
 precheck2(_,                       _) -> exit(no_supervisor).
 
 build_tree(R) ->
-  T = traverse({R, regname(R), supervisor}),
+  T = traverse(R, R, ?DEPTH),
   asciify_tree(T).
 
-traverse({N = undefined, Id, T})  -> {{N, Id, T}, []};
-traverse({N, Id, T = worker})     -> {{N, Id, T}, []};
-traverse({N, Id, T = supervisor}) ->
-  Cs = supervisor:which_children(N),
-  {{N, Id, T}, [traverse({CN, CId, CT}) || {CId, CN, CT, _CMs} <- Cs]}.
+traverse(_, _, 0) -> [];
+traverse(N, P, Depth) ->
+  {links, Ls} = process_info(N, links),
+  {dictionary, D} = process_info(N, dictionary),
+  As = proplists:get_value('$ancestors', D, []),
+  Cs = (Ls -- [P]) -- As,
+  ST = [traverse(C, N, Depth-1) || C <- Cs, is_port(C) =:= false],
+  {N, ST}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% ASCII Drawing
@@ -38,15 +43,16 @@ traverse({N, Id, T = supervisor}) ->
 
 asciify_tree(T) -> asciify_tree([T], 0).
 
-asciify_tree([],   _) -> ok;
-asciify_tree([{{P, N, T}, ST}], 0) ->
-  io:format("~s:~s~n", [shorttype(T), nicename(P, N)]),
+asciify_tree([], _)   -> ok;
+asciify_tree([[]], _) -> ok;
+asciify_tree([{R, ST}|Rest], 0) ->
+  io:format("~s~n", [nicename(R, regname(R))]),
   asciify_tree(ST, 1);
-asciify_tree([{{P, N, T}, ST}], L) ->
-  io:format("~s`-~s:~s~n", [indent(L*2), shorttype(T), nicename(P, N)]),
+asciify_tree([{R, ST}], L) ->
+  io:format("~s`-~s~n", [indent(L*2), nicename(R, regname(R))]),
   asciify_tree(ST, L+1);
-asciify_tree([{{P, N, T}, ST}|Rest], L) ->
-  io:format("~s+-~s:~s~n", [indent(L*2), shorttype(T), nicename(P, N)]),
+asciify_tree([{R, ST}|Rest], L) ->
+  io:format("~s+-~s~n", [indent(L*2), nicename(R, regname(R))]),
   asciify_tree(ST, L+1),
   asciify_tree(Rest, L).
 
@@ -63,6 +69,3 @@ regname(R) ->
 
 nicename(P, undefined) -> io_lib:format("~p",      [P]);
 nicename(P, N)         -> io_lib:format("~p (~p)", [N, P]).
-
-shorttype(supervisor) -> "s";
-shorttype(worker)     -> "w".
