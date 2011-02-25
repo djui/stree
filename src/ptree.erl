@@ -14,15 +14,15 @@
 
 main([S])               -> main(S);
 main(S) when is_atom(S) -> main(whereis(S));
-main(S) when is_pid(S)  -> precheck(S), build_tree(S).
+main(S) when is_pid(S)  -> ok = precheck(S), build_tree(S).
 
-precheck(undefined) -> exit(not_found);
+precheck(undefined) -> throw(not_found);
 precheck(P)         ->
   {dictionary, D} = process_info(P, dictionary),
   precheck2(proplists:get_value('$initial_call', D), P).
 
 precheck2({supervisor, kernel, 1}, _) -> ok;
-precheck2(_,                       _) -> exit(no_supervisor).
+precheck2(_,                       _) -> throw(no_supervisor).
 
 build_tree(R) ->
   T = traverse(R, R, ?DEPTH),
