@@ -1,8 +1,8 @@
-Ball:
-	erlc -o ebin src/*.erl
+all:
+	rebar compile
 
 clean:
-	rm -rf ebin/*.beam
+	rebar clean
 
 test: all
 	erl -noshell -noinput -pa ebin -s stree main kernel_sup -s init stop

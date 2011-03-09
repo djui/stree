@@ -1,3 +1,4 @@
 {application, stree,
  [{description, "Draws a supervision tree given the registered supervisor name"},
+  {vsn, "1"},
   {applications, [kernel, stdlib]}]}.
