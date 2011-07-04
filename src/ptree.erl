@@ -8,14 +8,16 @@
 
 -author("Uwe Dauernheim <uwe@dauernheim.net>").
 
--export([main/1]).
+-export([main/1, main/2]).
 
 -define(DEPTH, 3).
 
-main(undefined)         -> throw(no_supervisor);
-main([S])               -> main(S);
-main(S) when is_atom(S) -> main(whereis(S));
-main(S) when is_pid(S)  -> ok = precheck(S), build_tree(S).
+main(S) -> main(S, ?DEPTH).
+
+main(undefined, _)             -> throw(no_supervisor);
+main([S], Depth)               -> main(S, Depth);
+main(S, Depth) when is_atom(S) -> main(whereis(S), Depth);
+main(S, Depth) when is_pid(S)  -> ok = precheck(S), build_tree(S, Depth).
 
 precheck(undefined) -> throw(not_found);
 precheck(P)         ->
@@ -25,8 +27,8 @@ precheck(P)         ->
 precheck2({supervisor, kernel, 1}, _) -> ok;
 precheck2(_,                       _) -> throw(no_supervisor).
 
-build_tree(R) ->
-  T = traverse(R, R, ?DEPTH),
+build_tree(R, Depth) ->
+  T = traverse(R, R, Depth),
   asciify_tree(T).
 
 traverse(_, _, 0) -> [];
