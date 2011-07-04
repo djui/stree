@@ -46,8 +46,6 @@ traverse(N, P, Depth) ->
 
 asciify_tree(T) -> asciify_tree([T], 0).
 
-asciify_tree([], _)   -> ok;
-asciify_tree([[]], _) -> ok;
 asciify_tree([{R, ST}], 0) ->
   io:format("~s~n", [nicename(R, regname(R))]),
   asciify_tree(ST, 1);
@@ -57,7 +55,8 @@ asciify_tree([{R, ST}], L) ->
 asciify_tree([{R, ST}|Rest], L) ->
   io:format("~s+-~s~n", [indent(L*2), nicename(R, regname(R))]),
   asciify_tree(ST, L+1),
-  asciify_tree(Rest, L).
+  asciify_tree(Rest, L);
+asciify_tree(_, _) -> ok.
 
 indent(N) -> string:right("", N).
 
