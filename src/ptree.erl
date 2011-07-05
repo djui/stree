@@ -8,13 +8,16 @@
 
 -author("Uwe Dauernheim <uwe@dauernheim.net>").
 
--export([main/1]).
+-export([main/1, main/2]).
 
 -define(DEPTH, 3).
 
-main([S])               -> main(S);
-main(S) when is_atom(S) -> main(whereis(S));
-main(S) when is_pid(S)  -> ok = precheck(S), build_tree(S).
+main(S) -> main(S, ?DEPTH).
+
+main(undefined, _)             -> throw(no_supervisor);
+main([S], Depth)               -> main(S, Depth);
+main(S, Depth) when is_atom(S) -> main(whereis(S), Depth);
+main(S, Depth) when is_pid(S)  -> ok = precheck(S), build_tree(S, Depth).
 
 precheck(undefined) -> throw(not_found);
 precheck(P)         ->
@@ -24,8 +27,8 @@ precheck(P)         ->
 precheck2({supervisor, kernel, 1}, _) -> ok;
 precheck2(_,                       _) -> throw(no_supervisor).
 
-build_tree(R) ->
-  T = traverse(R, R, ?DEPTH),
+build_tree(R, Depth) ->
+  T = traverse(R, R, Depth),
   asciify_tree(T).
 
 traverse(_, _, 0) -> [];
@@ -43,8 +46,6 @@ traverse(N, P, Depth) ->
 
 asciify_tree(T) -> asciify_tree([T], 0).
 
-asciify_tree([], _)   -> ok;
-asciify_tree([[]], _) -> ok;
 asciify_tree([{R, ST}], 0) ->
   io:format("~s~n", [nicename(R, regname(R))]),
   asciify_tree(ST, 1);
@@ -54,7 +55,8 @@ asciify_tree([{R, ST}], L) ->
 asciify_tree([{R, ST}|Rest], L) ->
   io:format("~s+-~s~n", [indent(L*2), nicename(R, regname(R))]),
   asciify_tree(ST, L+1),
-  asciify_tree(Rest, L).
+  asciify_tree(Rest, L);
+asciify_tree(_, _) -> ok.
 
 indent(N) -> string:right("", N).
 
