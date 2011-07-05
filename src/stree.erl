@@ -10,6 +10,7 @@
 
 -export([main/1]).
 
+main(undefined)         -> throw(no_supervisor);
 main([S])               -> main(S);
 main(S) when is_atom(S) -> main(whereis(S));
 main(S) when is_pid(S)  -> ok = precheck(S), build_tree(S).
